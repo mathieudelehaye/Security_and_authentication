@@ -1,5 +1,5 @@
 # Security_authentication
-A Node.js application using different authentication methods
+A Node.js application to test different authentication methods
 
 <img src="Screenshot_01.png" width="800"/>
 
