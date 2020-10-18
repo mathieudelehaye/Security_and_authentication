@@ -4,7 +4,8 @@ const express = require("express")
 const bodyParser = require("body-parser")
 const ejs = require("ejs")
 const mongoose = require("mongoose")
-const encrypt = require("mongoose-encryption")
+// const encrypt = require("mongoose-encryption") // 1/ Authentication with encryption key and environment variable
+const md5 = require('md5') // 2/ Authentication with hash function
 
 const app = express()
 
@@ -24,10 +25,11 @@ const userSchema = new mongoose.Schema({
   password: String
 })
 
-userSchema.plugin(encrypt, {
-  secret: process.env.SECRET,
-  encryptedFields: ["password"]
-})
+// 1/ Authentication with encryption key and environment variable
+// userSchema.plugin(encrypt, {
+//   secret: process.env.SECRET,
+//   encryptedFields: ["password"]
+// })
 
 const User = mongoose.model("User", userSchema)
 
@@ -44,7 +46,8 @@ app.route('/register')
   .post(function(req, res) {
     const user = new User({
       email: req.body.username,
-      password: req.body.password
+      // password: req.body.password  // 1/ Authentication with encryption key and environment variable
+      password: md5(req.body.password) // 2/ Authentication with hash function
     })
     user.save(function(err) {
       if (!err) {
@@ -63,7 +66,7 @@ app.route('/login')
 
   .post(function(req, res) {
     const username = req.body.username
-    const password = req.body.password
+    const password = md5(req.body.password) // 2/ Authentication with hash function
 
     User.findOne({
       email: username
@@ -77,6 +80,12 @@ app.route('/login')
         }
       }
     })
+  })
+
+app.route('/logout')
+
+  .get(function(req, res) {
+    res.redirect("/")
   })
 
 app.listen(3000, function() {
