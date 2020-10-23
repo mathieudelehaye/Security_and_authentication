@@ -1,5 +1,5 @@
 # Security_authentication
-A Node.js application to demonstrate methods of user authentication.
+A Node.js application to demonstrate security methods for user authentication.
 
 Methods demonstrated: 
 * Authentication with encryption key and environment variable
