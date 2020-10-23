@@ -8,9 +8,12 @@ const mongoose = require("mongoose")
 // const md5 = require('md5') // 2/ Authentication with hash function
 // const bcrypt = require('bcrypt') // 3/ Hashing and salting password
 // 4/ Cookies and session
-const session = require('express-session')
+const session = require("express-session")
 const passport = require("passport")
 const passportLocalMongoose = require("passport-local-mongoose")
+// 5/ Google oauth authentication
+const GoogleStrategy = require("passport-google-oauth20").Strategy
+const findOrCreate = require("mongoose-findorcreate")
 
 // const saltRounds = 10 // 3/ Hashing and salting password
 
@@ -40,7 +43,8 @@ mongoose.connect("mongodb://localhost:27017/userDB", {
 
 const userSchema = new mongoose.Schema({
   email: String,
-  password: String
+  password: String,
+  googleId: String
 })
 
 // 1/ Authentication with encryption key and environment variable
@@ -52,12 +56,44 @@ const userSchema = new mongoose.Schema({
 // 4/ Cookies and session
 userSchema.plugin(passportLocalMongoose)
 
+// 5/ Google oauth authentication
+userSchema.plugin(findOrCreate)
+
 const User = mongoose.model("User", userSchema)
 
 passport.use(User.createStrategy())
 
-passport.serializeUser(User.serializeUser())
-passport.deserializeUser(User.deserializeUser())
+// passport.serializeUser(User.serializeUser())
+// passport.deserializeUser(User.deserializeUser())
+
+// 5/ Google oauth authentication: user (de)serialization must comprise another Strategy than the local one
+passport.serializeUser(function(user, done) {
+  done(null, user.id);
+})
+
+passport.deserializeUser(function(id, done) {
+  User.findById(id, function(err, user) {
+    done(err, user)
+  })
+})
+
+// 5/ Google oauth authentication
+passport.use(new GoogleStrategy({
+    clientID: process.env.CLIENT_ID,
+    clientSecret: process.env.CLIENT_SECRET,
+    callbackURL: "http://localhost:3000/auth/google/secrets",
+    userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo"
+  },
+  function(accessToken, refreshToken, profile, cb) {
+    // console.log(profile)
+
+    User.findOrCreate({
+      googleId: profile.id
+    }, function(err, user) {
+      return cb(err, user)
+    })
+  }
+))
 
 app.get('/', function(req, res) {
   res.render("home")
@@ -105,6 +141,24 @@ app.route('/register')
     //       console.log(err)
     //     }
     //   })
+  })
+
+// 5/ Google oauth authentication
+app.route("/auth/google")
+
+  .get(passport.authenticate(
+    "google", {
+      scope: ["profile"]
+    }
+  ))
+
+app.get("/auth/google/secrets",
+  passport.authenticate('google', {
+    failureRedirect: "/login"
+  }),
+  function(req, res) {
+    // Successful authentication, redirect home.
+    res.redirect("/secrets")
   })
 
 // 4/ Cookies and session
