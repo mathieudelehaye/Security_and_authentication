@@ -11,8 +11,9 @@ const mongoose = require("mongoose")
 const session = require("express-session")
 const passport = require("passport")
 const passportLocalMongoose = require("passport-local-mongoose")
-// 5/ Google oauth authentication
+// 5/ Oauth authentication
 const GoogleStrategy = require("passport-google-oauth20").Strategy
+const FacebookStrategy = require("passport-facebook").Strategy
 const findOrCreate = require("mongoose-findorcreate")
 
 // const saltRounds = 10 // 3/ Hashing and salting password
@@ -44,7 +45,8 @@ mongoose.connect("mongodb://localhost:27017/userDB", {
 const userSchema = new mongoose.Schema({
   email: String,
   password: String,
-  googleId: String
+  googleId: String,
+  facebookId: String
 })
 
 // 1/ Authentication with encryption key and environment variable
@@ -56,7 +58,7 @@ const userSchema = new mongoose.Schema({
 // 4/ Cookies and session
 userSchema.plugin(passportLocalMongoose)
 
-// 5/ Google oauth authentication
+// 5/ Oauth authentication
 userSchema.plugin(findOrCreate)
 
 const User = mongoose.model("User", userSchema)
@@ -66,7 +68,7 @@ passport.use(User.createStrategy())
 // passport.serializeUser(User.serializeUser())
 // passport.deserializeUser(User.deserializeUser())
 
-// 5/ Google oauth authentication: user (de)serialization must comprise another Strategy than the local one
+// 5/ Oauth authentication: user (de)serialization must comprise another strategy than the local one
 passport.serializeUser(function(user, done) {
   done(null, user.id);
 })
@@ -77,19 +79,49 @@ passport.deserializeUser(function(id, done) {
   })
 })
 
-// 5/ Google oauth authentication
+// 5/ Oauth authentication
 passport.use(new GoogleStrategy({
-    clientID: process.env.CLIENT_ID,
-    clientSecret: process.env.CLIENT_SECRET,
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     callbackURL: "http://localhost:3000/auth/google/secrets",
-    userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo"
+    userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo",
+    profileFields: ["emails"]
   },
   function(accessToken, refreshToken, profile, cb) {
     // console.log(profile)
 
+    const googleId = profile.id
+    const email = profile.emails[0].value
+
     User.findOrCreate({
-      googleId: profile.id
+      googleId: googleId
+    }, {
+      email: email
     }, function(err, user) {
+
+      return cb(err, user)
+    })
+  }
+))
+
+passport.use(new FacebookStrategy({
+    clientID: process.env.FB_CLIENT_ID,
+    clientSecret: process.env.FB_CLIENT_SECRET,
+    callbackURL: "http://localhost:3000/auth/facebook/secrets",
+    profileFields: ["emails"]
+  },
+  function(accessToken, refreshToken, profile, cb) {
+    // console.log(profile)
+
+    const facebookId = profile.id
+    const email = profile.emails[0].value
+
+    User.findOrCreate({
+      facebookId: facebookId
+    }, {
+      email: email
+    }, function(err, user) {
+
       return cb(err, user)
     })
   }
@@ -143,17 +175,31 @@ app.route('/register')
     //   })
   })
 
-// 5/ Google oauth authentication
+// 5/ Oauth authentication
 app.route("/auth/google")
 
   .get(passport.authenticate(
     "google", {
-      scope: ["profile"]
-    }
-  ))
+      scope: ["profile", "email"]
+    }))
 
 app.get("/auth/google/secrets",
-  passport.authenticate('google', {
+  passport.authenticate("google", {
+    failureRedirect: "/login"
+  }),
+  function(req, res) {
+    // Successful authentication, redirect home.
+    res.redirect("/secrets")
+  })
+
+app.route("/auth/facebook")
+
+  .get(passport.authenticate("facebook", {
+    scope: ["email"]
+  }))
+
+app.get("/auth/facebook/secrets",
+  passport.authenticate("facebook", {
     failureRedirect: "/login"
   }),
   function(req, res) {
@@ -162,7 +208,7 @@ app.get("/auth/google/secrets",
   })
 
 // 4/ Cookies and session
-app.route('/secrets')
+app.route("/secrets")
 
   .get(function(req, res) {
 
@@ -175,7 +221,7 @@ app.route('/secrets')
   })
 
 // 4/ Cookies and session
-app.route('/login')
+app.route("/login")
 
   .get(function(req, res) {
     res.render("login")
@@ -219,7 +265,7 @@ app.route('/login')
     // })
   })
 
-app.route('/logout')
+app.route("/logout")
 
   .get(function(req, res) {
     req.logout();
