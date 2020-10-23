@@ -1,11 +1,11 @@
 # Security_authentication
-A Node.js application to demonstrate methods of data security and user authentication.
+A Node.js application to demonstrate methods of user authentication.
 
-Methods of user authentication: 
+Methods demonstrated: 
 * Authentication with encryption key and environment variable
 * Authentication with hash function
 * Hashing and salting password
-* Cookies and session
+* Cookies and session management 
 * Oauth authentication
 
 <img src="Screenshot_01.png" width="800"/>
