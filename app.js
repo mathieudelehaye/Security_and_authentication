@@ -46,7 +46,8 @@ const userSchema = new mongoose.Schema({
   email: String,
   password: String,
   googleId: String,
-  facebookId: String
+  facebookId: String,
+  secret: String
 })
 
 // 1/ Authentication with encryption key and environment variable
@@ -127,6 +128,7 @@ passport.use(new FacebookStrategy({
   }
 ))
 
+// 4/ Cookies and session
 app.get('/', function(req, res) {
   res.render("home")
 })
@@ -175,52 +177,6 @@ app.route('/register')
     //   })
   })
 
-// 5/ Oauth authentication
-app.route("/auth/google")
-
-  .get(passport.authenticate(
-    "google", {
-      scope: ["profile", "email"]
-    }))
-
-app.get("/auth/google/secrets",
-  passport.authenticate("google", {
-    failureRedirect: "/login"
-  }),
-  function(req, res) {
-    // Successful authentication, redirect home.
-    res.redirect("/secrets")
-  })
-
-app.route("/auth/facebook")
-
-  .get(passport.authenticate("facebook", {
-    scope: ["email"]
-  }))
-
-app.get("/auth/facebook/secrets",
-  passport.authenticate("facebook", {
-    failureRedirect: "/login"
-  }),
-  function(req, res) {
-    // Successful authentication, redirect home.
-    res.redirect("/secrets")
-  })
-
-// 4/ Cookies and session
-app.route("/secrets")
-
-  .get(function(req, res) {
-
-    if (req.isAuthenticated()) {
-      res.render("secrets")
-    } else {
-      res.redirect("/login")
-    }
-
-  })
-
-// 4/ Cookies and session
 app.route("/login")
 
   .get(function(req, res) {
@@ -263,6 +219,95 @@ app.route("/login")
     //     })
     //   }
     // })
+  })
+
+// 5/ Oauth authentication
+app.route("/auth/google")
+
+  .get(passport.authenticate(
+    "google", {
+      scope: ["profile", "email"]
+    }))
+
+app.get("/auth/google/secrets",
+  passport.authenticate("google", {
+    failureRedirect: "/login"
+  }),
+  function(req, res) {
+    // Successful authentication, redirect home.
+    res.redirect("/secrets")
+  })
+
+app.route("/auth/facebook")
+
+  .get(passport.authenticate("facebook", {
+    scope: ["email"]
+  }))
+
+app.get("/auth/facebook/secrets",
+  passport.authenticate("facebook", {
+    failureRedirect: "/login"
+  }),
+  function(req, res) {
+    // Successful authentication, redirect home.
+    res.redirect("/secrets")
+  })
+
+// 4/ Cookies and session
+app.route("/secrets")
+
+  .get(function(req, res) {
+
+    User.find({
+      "secret": {
+        $ne: null
+      }
+    }, function(err, foundUsers) {
+
+      if (err) {
+        console.log(err)
+      } else {
+
+        if (foundUsers) {
+          // console.log(foundUsers)
+
+          res.render("secrets", {
+            usersWithSecrets: foundUsers
+          })
+        }
+      }
+    })
+  })
+
+app.route("/submit")
+
+  .get(function(req, res) {
+
+    if (req.isAuthenticated()) {
+      res.render("submit")
+    } else {
+      res.redirect("/login")
+    }
+  })
+
+  .post(function(req, res) {
+
+    const submittedSecret = req.body.secret
+
+    User.findById(req.user.id, function(err, foundUser) {
+
+      if (err) {
+        console.log(err)
+      } else {
+
+        if (foundUser) {
+          foundUser.secret = submittedSecret
+          foundUser.save(function() {
+            res.redirect("/secrets")
+          })
+        }
+      }
+    })
   })
 
 app.route("/logout")
