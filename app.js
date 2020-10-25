@@ -71,7 +71,7 @@ passport.use(User.createStrategy())
 
 // 5/ Oauth authentication: user (de)serialization must comprise another strategy than the local one
 passport.serializeUser(function(user, done) {
-  done(null, user.id);
+  done(null, user.id)
 })
 
 passport.deserializeUser(function(id, done) {
@@ -108,7 +108,7 @@ passport.use(new GoogleStrategy({
 passport.use(new FacebookStrategy({
     clientID: process.env.FB_CLIENT_ID,
     clientSecret: process.env.FB_CLIENT_SECRET,
-    callbackURL: "http://localhost:3000/auth/facebook/secrets",
+    callbackURL: "/auth/facebook/secrets",
     profileFields: ["emails"]
   },
   function(accessToken, refreshToken, profile, cb) {
@@ -229,29 +229,30 @@ app.route("/auth/google")
       scope: ["profile", "email"]
     }))
 
-app.get("/auth/google/secrets",
-  passport.authenticate("google", {
-    failureRedirect: "/login"
-  }),
-  function(req, res) {
-    // Successful authentication, redirect home.
-    res.redirect("/secrets")
-  })
+app.route("/auth/google/secrets")
+
+  .get(passport.authenticate("google", {
+      failureRedirect: "/login"
+    }),
+    function(req, res) {
+      // Successful authentication, redirect.
+      res.redirect("/secrets")
+    })
 
 app.route("/auth/facebook")
 
-  .get(passport.authenticate("facebook", {
-    scope: ["email"]
-  }))
+  .get(passport.authenticate(
+    "facebook"))
 
-app.get("/auth/facebook/secrets",
-  passport.authenticate("facebook", {
-    failureRedirect: "/login"
-  }),
-  function(req, res) {
-    // Successful authentication, redirect home.
-    res.redirect("/secrets")
-  })
+app.route("/auth/facebook/secrets")
+
+  .get(passport.authenticate("facebook", {
+      failureRedirect: "/login"
+    }),
+    function(req, res) {
+      // Successful authentication, redirect.
+      res.redirect("/secrets")
+    })
 
 // 4/ Cookies and session
 app.route("/secrets")
